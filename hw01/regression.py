@@ -5,6 +5,10 @@ Jerry Sun 20201022
 """
 import pandas as pd
 import numpy as np
+from sklearn.linear_model import LinearRegression
+import matplotlib.pyplot as plt
+import random
+
 
 months = 12
 days = 20
@@ -38,6 +42,7 @@ def load_train_csv(csv):
     #     for j in range(hours):
     #         data.iloc[rain_feature,j]=0
     #     rain_feature += features
+    # 低版本用data.values，高版本用data.to_numpy()
     data = data.to_numpy()
     return data
 
@@ -63,14 +68,83 @@ def extract_features(data):
 def convert2samples(train_data):
     # 数据9笔+1笔循环打包为x和y，共有数据量减9个样本
     sample_num = months * days * hours - 9
-    x = np.empty([sample_num, 9])
-    y = np.empty([sample_num, 0])
+    x = np.empty([sample_num, 9],dtype=np.float)
+    y = np.empty(sample_num,dtype=np.float)
     for i in range(months * days * hours - 9):
         sample = train_data[pm25, i:i + 9]
         x[i] = sample
         y[i] = train_data[pm25, i + 9]
+    print(type(x))
+    x = x.astype(dtype=np.float)
+    print(type(x))
+    y = y.astype(dtype=np.float)
+    print(type(y))
     return x,y
 
 
+def load_test_csv(csv):
+    """
+    读取测试数据文件
+    :param csv: 文件名
+    :return:
+    """
+    data = pd.read_csv(csv, encoding='utf8')
+    data = data.iloc[:,2:]
+    # use pandas to set all rainfall value to 0
+    data[data == 'NR'] = 0
+    # 低版本用data.values，高版本用data.to_numpy()
+    data = data.to_numpy().astype(dtype=np.float32)
+    # data = data.to_numpy().astype(dtype=np.float32)
+    data = data[8:-1:18,:]
+    return data
+
+
+def train_with_sklearn():
+    # print_file()
+    # 加载训练数据生成训练样本
+    data = load_train_csv('train.csv')
+    train_data = extract_features(data)
+    x,y = convert2samples(train_data)
+    print(x.shape)
+    print(y.shape)
+    # 创建线性回归模型进行训练
+    model = LinearRegression()
+    model.fit(x, y)
+    score = model.score(x,y)
+    print('score:', score)
+
+    # 对训练数据中的前100项进行预测，看看效果如何
+    test_data = x[0:9]
+    result = model.predict(test_data)
+    for i in range(len(test_data)):
+        print('predict:{0:.2f}, actual:{1:.2f}, error:{2:.2f}'.format(result[i],y[i], y[i]-result[i]))
+        temp_data = test_data[i]
+        temp_data = temp_data.tolist()
+        temp_data.append(y[i])
+        plt.subplot(3,3,i+1)
+        plt.plot(temp_data)
+        plt.scatter([9],[result[i]], marker='o', c='r')
+        plt.ylim(0,60)
+    plt.show()
+
+    # 加载测试数据
+    test_data = load_test_csv('test.csv')
+    # 从测试数据中随机选取9项进行预测
+    for i in range(9):
+        # 随机抽取一个测试样本
+        test_one = random.choice(test_data)
+        # test_one = test_data[i]
+        test_one = test_one.reshape(1,-1)
+        # 预测
+        result = model.predict(test_one)
+        data = test_one[0].tolist()
+        data.append(result[0])
+        # 显示预测表格
+        plt.subplot(3,3,i+1)
+        plt.plot(data)
+        # plt.ylim(0, 60)
+    plt.show()
+
+
 if __name__ == '__main__':
-    print_file()
+    train_with_sklearn()
