@@ -74,11 +74,8 @@ def convert2samples(train_data):
         sample = train_data[pm25, i:i + 9]
         x[i] = sample
         y[i] = train_data[pm25, i + 9]
-    print(type(x))
     x = x.astype(dtype=np.float)
-    print(type(x))
     y = y.astype(dtype=np.float)
-    print(type(y))
     return x,y
 
 
@@ -99,23 +96,27 @@ def load_test_csv(csv):
     return data
 
 
-def train_with_sklearn():
+def train_with_sklearn(x,y):
     # print_file()
     # 加载训练数据生成训练样本
-    data = load_train_csv('train.csv')
-    train_data = extract_features(data)
-    x,y = convert2samples(train_data)
-    print(x.shape)
-    print(y.shape)
     # 创建线性回归模型进行训练
     model = LinearRegression()
     model.fit(x, y)
     score = model.score(x,y)
+    print('coef:',model.coef_)
     print('score:', score)
+    return model.coef_
 
+
+def predict(x,w):
+    return np.matmul(x,w)
+
+
+def show_result(x,y,w):
     # 对训练数据中的前100项进行预测，看看效果如何
     test_data = x[0:9]
-    result = model.predict(test_data)
+    # result = model.predict(test_data)
+    result = predict(test_data, w)
     for i in range(len(test_data)):
         print('predict:{0:.2f}, actual:{1:.2f}, error:{2:.2f}'.format(result[i],y[i], y[i]-result[i]))
         temp_data = test_data[i]
@@ -136,7 +137,8 @@ def train_with_sklearn():
         # test_one = test_data[i]
         test_one = test_one.reshape(1,-1)
         # 预测
-        result = model.predict(test_one)
+        # result = model.predict(test_one)
+        result = predict(test_one,w)
         data = test_one[0].tolist()
         data.append(result[0])
         # 显示预测表格
@@ -146,5 +148,37 @@ def train_with_sklearn():
     plt.show()
 
 
+def my_train(epochs=200):
+    data = load_train_csv('train.csv')
+    train_data = extract_features(data)
+    x,y = convert2samples(train_data)
+    # w = np.random.random(10)
+    w = np.random.random(9)
+    learning_rate = 1e-4
+    total = len(y)
+    for i in range(epochs):
+        loss = 0
+        gradient = 0
+        for j in range(total):
+            sample = x[j].copy()
+            # sample = np.insert(sample,0,1)
+            error = y[j] - np.matmul(w,sample)
+            loss += error*error
+            gradient += -2*error*sample
+        loss /= total
+        print('epoch {0}, loss {1}'.format(i, loss))
+        gradient /= total
+        w = w - learning_rate*gradient
+    return w
+
+
 if __name__ == '__main__':
-    train_with_sklearn()
+    data = load_train_csv('train.csv')
+    train_data = extract_features(data)
+    x,y = convert2samples(train_data)
+    print(x.shape)
+    print(y.shape)
+    # w = train_with_sklearn(x,y)
+    w = my_train()
+    print('train weights:', w)
+    show_result(x, y, w)
